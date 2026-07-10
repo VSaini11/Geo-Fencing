@@ -15,7 +15,7 @@ import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CACHED_ACTIVE_CHECKIN_KEY, CACHED_CHECKINS_KEY, CACHED_LOCATIONS_KEY, GEOFENCE_TASK_NAME } from "../tasks/geofenceTask";
-import { flushOfflineQueue } from "../utils/offlineQueue";
+import { flushOfflineQueue, pushOfflineEvent } from "../utils/offlineQueue";
 
 export function useGeofence() {
   const queryClient = useQueryClient();
@@ -313,10 +313,14 @@ export function useGeofence() {
             // Optimistic Checkout
             setCachedActiveCheckIn(null);
             
-            await checkOutCheckIn.mutateAsync({
+            await pushOfflineEvent({
+              type: 'checkout',
               id: currentCheckIn.id || currentCheckIn._id,
-              data: { latitude: lat, longitude: lon, timestamp: now },
+              latitude: lat,
+              longitude: lon,
+              timestamp: now
             });
+            await flushOfflineQueue();
             queryClient.invalidateQueries({ queryKey: getListCheckInsQueryKey() });
             return;
           } else {
@@ -328,10 +332,14 @@ export function useGeofence() {
           // Optimistic Checkout
           setCachedActiveCheckIn(null);
           
-          await checkOutCheckIn.mutateAsync({
+          await pushOfflineEvent({
+            type: 'checkout',
             id: currentCheckIn.id || currentCheckIn._id,
-            data: { latitude: lat, longitude: lon },
+            latitude: lat,
+            longitude: lon,
+            timestamp: now
           });
+          await flushOfflineQueue();
           queryClient.invalidateQueries({ queryKey: getListCheckInsQueryKey() });
           return;
         }
@@ -360,15 +368,15 @@ export function useGeofence() {
               userName: userNameRef.current ?? undefined
             });
 
-            await createCheckIn.mutateAsync({
-              data: {
-                locationId: locId,
-                latitude: lat,
-                longitude: lon,
-                userName: userNameRef.current ?? undefined,
-                timestamp: now,
-              },
+            await pushOfflineEvent({
+              type: 'checkin',
+              locationId: locId,
+              latitude: lat,
+              longitude: lon,
+              userName: userNameRef.current ?? undefined,
+              timestamp: now
             });
+            await flushOfflineQueue();
             queryClient.invalidateQueries({ queryKey: getListCheckInsQueryKey() });
           }
         } else {
