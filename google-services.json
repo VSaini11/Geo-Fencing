@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "80143208003",
+    "project_id": "gca-app-d9772",
+    "storage_bucket": "gca-app-d9772.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:80143208003:android:d8dc2e3ce33bf647c54ef6",
+        "android_client_info": {
+          "package_name": "com.vstheone.geocheckin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA3h9gWvLOEmMR5JHHyYejFttnz3uqLDRs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

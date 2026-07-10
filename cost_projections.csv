@@ -1,0 +1,5 @@
+Service/API,Description,Under 200 Employees,201 to 499 Employees,500+ Employees
+OpenStreetMap (Leaflet Web),Map visuals and rendering layer,$0 (Free Open Source),$0 (Free Open Source),$0 (Free Open Source)
+expo-location (Native GPS),Live tracking and radius math on phone CPU,$0 (Free Built-in OS feature),$0 (Free Built-in OS feature),$0 (Free Built-in OS feature)
+Zoho Catalyst (Backend),API Server handling 5-second location pings,$0 (Under Free Tier invocations),Variable (Depends on ping volume),Variable (Depends on ping volume)
+MongoDB Atlas (Database),Data storage for Check-Ins and Daily Logs,$0 (Free Tier - Zero Over-Consumption),$15 / month,$57 / month
