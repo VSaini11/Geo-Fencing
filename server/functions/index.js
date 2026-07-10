@@ -435,12 +435,14 @@ app.post('/api/checkins', authenticateToken, async (req, res) => {
 
 app.post('/api/checkins/:id/ping', authenticateToken, async (req, res) => {
     try {
-        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-            return res.status(400).json({ message: 'Invalid check-in ID format' });
-        }
-
         const { latitude, longitude } = req.body;
-        const checkIn = await CheckIn.findById(req.params.id);
+        
+        let checkIn;
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            checkIn = await CheckIn.findOne({ userName: req.user.name, status: 'active' }).sort({ checkInAt: -1 });
+        } else {
+            checkIn = await CheckIn.findById(req.params.id);
+        }
         if (!checkIn) return res.status(404).json({ message: 'Check-in not found' });
 
         // Allow admin or the owner
@@ -467,13 +469,15 @@ app.post('/api/checkins/:id/checkout', authenticateToken, async (req, res) => {
         console.log(`[USER]  ${req.user.name} | [CHECK-IN ID] ${req.params.id}`);
         console.log(`[BODY]  Payload:`, req.body);
 
-        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-            console.log(`[Checkout] Invalid check-in ID format: ${req.params.id}. Returning 400 to unblock client queue.`);
-            return res.status(400).json({ message: 'Invalid check-in ID format' });
-        }
-
         const { latitude, longitude, timestamp } = req.body;
-        const checkIn = await CheckIn.findById(req.params.id);
+        
+        let checkIn;
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            console.log(`[Checkout] Invalid check-in ID format: ${req.params.id}. Falling back to active check-in.`);
+            checkIn = await CheckIn.findOne({ userName: req.user.name, status: 'active' }).sort({ checkInAt: -1 });
+        } else {
+            checkIn = await CheckIn.findById(req.params.id);
+        }
         if (!checkIn) return res.status(404).json({ message: 'Check-in not found' });
 
         // Allow admin or the owner

@@ -5,7 +5,7 @@ export const OFFLINE_EVENT_QUEUE_KEY = 'geo-checkin:offline_event_queue';
 
 const fetchWithTimeout = async (url: string, options: any, timeoutMs = 8000) => {
   const controller = new AbortController();
-  
+
   const fetchPromise = fetch(url, {
     ...options,
     signal: controller.signal,
@@ -37,7 +37,7 @@ export async function flushOfflineQueue(apiUrl?: string, token?: string) {
   try {
     const queueStr = await AsyncStorage.getItem(OFFLINE_EVENT_QUEUE_KEY);
     if (!queueStr) return false; // nothing to do
-    
+
     let queue: any[] = JSON.parse(queueStr);
     if (queue.length === 0) return false;
 
@@ -61,7 +61,7 @@ export async function flushOfflineQueue(apiUrl?: string, token?: string) {
     for (const event of queue) {
       let url = '';
       let body = {};
-      
+
       if (event.type === 'checkout') {
         url = `${apiUrl}/api/checkins/${event.id}/checkout`;
         body = { latitude: event.latitude, longitude: event.longitude, timestamp: event.timestamp };
@@ -97,7 +97,7 @@ export async function flushOfflineQueue(apiUrl?: string, token?: string) {
         break;
       }
     }
-    
+
     if (newQueue.length !== queue.length) {
       await AsyncStorage.setItem(OFFLINE_EVENT_QUEUE_KEY, JSON.stringify(newQueue));
       bgLog.info(`🚀 Flushed ${processedCount} offline events. Remaining: ${newQueue.length}`);
@@ -111,5 +111,5 @@ export async function flushOfflineQueue(apiUrl?: string, token?: string) {
 }
 
 export async function fetchWithAbortTimeout(url: string, options: any, timeoutMs = 8000) {
-    return fetchWithTimeout(url, options, timeoutMs);
+  return fetchWithTimeout(url, options, timeoutMs);
 }
