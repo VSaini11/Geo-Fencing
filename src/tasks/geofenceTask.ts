@@ -333,6 +333,9 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
     }
     // ──────────────────────────────────────────────────────────────────────────
 
+    // Final attempt to flush queue before OS sleeps the background task
+    await flushOfflineQueue(apiUrl, token);
+
   } catch (e: any) {
     bgLog.error(`Unhandled error: ${e?.message || e}`);
   }

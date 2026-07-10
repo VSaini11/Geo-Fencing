@@ -80,11 +80,27 @@ export async function flushOfflineQueue(apiUrl?: string, token?: string) {
         continue;
       }
 
-      const res: any = await fetchWithTimeout(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(body)
-      }, 5000).catch(e => ({ ok: false, status: 'network_error' }));
+      let res: any = null;
+      let attempt = 0;
+      const MAX_ATTEMPTS = 2;
+
+      while (attempt < MAX_ATTEMPTS) {
+        res = await fetchWithTimeout(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(body)
+        }, 15000).catch(e => ({ ok: false, status: 'network_error' }));
+
+        if (res.ok || (typeof res.status === 'number' && res.status >= 400 && res.status < 500)) {
+          break; // Success or permanent failure, stop retrying
+        }
+        
+        attempt++;
+        if (attempt < MAX_ATTEMPTS) {
+          bgLog.warn(`Network error on ${event.type}, retrying in 2s...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
 
       if (res.ok || (typeof res.status === 'number' && res.status >= 400 && res.status < 500)) {
         // 2xx success OR 4xx permanent failure (e.g., duplicate check-in or invalid id)
