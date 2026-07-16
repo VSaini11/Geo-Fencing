@@ -190,6 +190,9 @@ app.post('/api/auth/login', async (req, res) => {
       { expiresIn: '30d' }
     );
 
+    user.isLoggedOut = false;
+    await user.save();
+
     res.json({
       message: 'Login successful',
       token,
@@ -197,12 +200,28 @@ app.post('/api/auth/login', async (req, res) => {
         id: user._id,
         name: user.name,
         role: user.role,
-        employeeId: user.employeeId
+        employeeId: user.employeeId,
+        isLoggedOut: user.isLoggedOut
       }
     });
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ message: 'Login failed', error: error.message });
+  }
+});
+
+// Logout
+app.post('/api/auth/logout', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (user) {
+      user.isLoggedOut = true;
+      // Optional: Clear push token if desired, e.g., user.pushToken = null;
+      await user.save();
+    }
+    res.json({ message: 'Logout successful' });
+  } catch (error) {
+    res.status(500).json({ message: 'Logout failed', error: error.message });
   }
 });
 

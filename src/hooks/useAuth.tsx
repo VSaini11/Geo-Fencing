@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { loginUser as apiLoginUser, registerUser as apiRegisterUser } from "../api/authClient";
+import { loginUser as apiLoginUser, registerUser as apiRegisterUser, logoutUser as apiLogoutUser } from "../api/authClient";
 
 export type Role = "admin" | "employee";
 
@@ -108,6 +108,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    // Try to notify the backend before clearing local state
+    if (authState.token) {
+      try {
+        await apiLogoutUser(authState.token);
+      } catch (e) {
+        // Ignore error and proceed to local logout
+      }
+    }
     await AsyncStorage.removeItem(STORAGE_KEY);
     setAuthState({
       userName: null,
@@ -116,7 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       token: null,
       isAuthenticated: false,
     });
-  }, []);
+  }, [authState.token]);
 
   return (
     <AuthContext.Provider value={{ ...authState, isLoaded, signIn, signUp, signOut }}>

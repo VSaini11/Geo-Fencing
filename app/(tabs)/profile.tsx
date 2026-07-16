@@ -4,17 +4,23 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import * as Location from "expo-location";
 
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "expo-router";
 import { getBgLogs, clearBgLogs, BgLogEntry } from "@/src/utils/bgLogger";
+import { useListCheckIns, useCheckOutCheckIn } from "@/hooks/useQueries";
 
 export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { userName, role, signOut } = useAuth();
   const router = useRouter();
+  
+  const { data: allCheckIns = [] } = useListCheckIns();
+  const checkOutCheckIn = useCheckOutCheckIn();
+
   const [showLogs, setShowLogs] = useState(false);
   const [logs, setLogs] = useState<BgLogEntry[]>([]);
 
@@ -38,6 +44,26 @@ export default function ProfileScreen() {
         text: "Sign Out",
         style: "destructive",
         onPress: async () => {
+          if (role === "employee") {
+            const activeCheckIn = allCheckIns.find((c: any) => c.status === "active" && c.userName === userName);
+            if (activeCheckIn) {
+              try {
+                let lat = 0;
+                let lon = 0;
+                const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low }).catch(() => null);
+                if (loc) {
+                  lat = loc.coords.latitude;
+                  lon = loc.coords.longitude;
+                }
+                await checkOutCheckIn.mutateAsync({
+                  id: activeCheckIn.id || activeCheckIn._id,
+                  data: { latitude: lat, longitude: lon }
+                });
+              } catch (e) {
+                console.log("Failed to checkout on logout", e);
+              }
+            }
+          }
           await signOut();
           router.replace("/(auth)/sign-in");
         },

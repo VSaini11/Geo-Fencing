@@ -19,6 +19,7 @@ export const fetchEmployees = async (token: string) => {
 };
 
 export const createLocation = async (token: string, data: any) => {
+    console.log("location sending....")
   const response = await fetch(`${API_BASE_URL}/api/locations`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -56,6 +57,7 @@ export const fetchCheckIns = async (token: string) => {
 };
 
 export const createCheckIn = async (token: string, data: { locationId: string, latitude: number, longitude: number }) => {
+  console.log("Checkin API successfully triggered");
   const response = await fetch(`${API_BASE_URL}/api/checkins`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -66,6 +68,7 @@ export const createCheckIn = async (token: string, data: { locationId: string, l
 };
 
 export const pingCheckIn = async (token: string, id: string, data: { latitude: number, longitude: number }) => {
+  console.log("Location ping API successfully triggered");
   const response = await fetch(`${API_BASE_URL}/api/checkins/${id}/ping`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -76,6 +79,7 @@ export const pingCheckIn = async (token: string, id: string, data: { latitude: n
 };
 
 export const checkOutCheckIn = async (token: string, id: string, data: { latitude: number, longitude: number, timestamp?: number }) => {
+  console.log("Checkout API successfully triggered");
   const response = await fetch(`${API_BASE_URL}/api/checkins/${id}/checkout`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -94,6 +98,7 @@ export const fetchDailyLogs = async (token: string) => {
 };
 
 export const updateLiveLocation = async (token: string, data: { latitude: number, longitude: number }) => {
+  console.log("Location API successfully triggered");
   const response = await fetch(`${API_BASE_URL}/api/users/location`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },

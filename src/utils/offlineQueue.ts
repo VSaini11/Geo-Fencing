@@ -85,6 +85,7 @@ export async function flushOfflineQueue(apiUrl?: string, token?: string) {
       const MAX_ATTEMPTS = 2;
 
       while (attempt < MAX_ATTEMPTS) {
+        bgLog.info(`${event.type === 'checkin' ? 'Checkin' : 'Checkout'} API successfully triggered from offline queue`);
         res = await fetchWithTimeout(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -94,7 +95,7 @@ export async function flushOfflineQueue(apiUrl?: string, token?: string) {
         if (res.ok || (typeof res.status === 'number' && res.status >= 400 && res.status < 500)) {
           break; // Success or permanent failure, stop retrying
         }
-        
+
         attempt++;
         if (attempt < MAX_ATTEMPTS) {
           bgLog.warn(`Network error on ${event.type}, retrying in 2s...`);

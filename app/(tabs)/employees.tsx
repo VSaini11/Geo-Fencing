@@ -1,15 +1,15 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { StyleSheet, Text, View, FlatList, ActivityIndicator, Alert, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
-import Animated, { FadeInDown, FadeIn, SlideInDown, SlideOutDown } from "react-native-reanimated";
 import { BlurView } from "expo-blur";
+import React, { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import Animated, { FadeIn, FadeInDown, SlideInDown, SlideOutDown } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useRouter } from "expo-router";
 
-import { useColors } from "@/hooks/useColors";
-import { fetchEmployees, registerUser, deleteEmployee } from "@/api/authClient";
+import { deleteEmployee, fetchEmployees, registerUser } from "@/api/authClient";
 import { useAuth } from "@/hooks/useAuth";
+import { useColors } from "@/hooks/useColors";
 import { useListCheckIns } from "@/hooks/useQueries";
 
 type Employee = {
@@ -17,6 +17,7 @@ type Employee = {
   name: string;
   employeeId: string;
   createdAt: string;
+  isLoggedOut?: boolean;
 };
 
 export default function EmployeesScreen() {
@@ -24,7 +25,7 @@ export default function EmployeesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { token, role } = useAuth();
-  
+
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { data: allCheckIns = [] } = useListCheckIns();
@@ -50,7 +51,8 @@ export default function EmployeesScreen() {
   const handleDeleteEmployee = (id: string, name: string) => {
     Alert.alert("Delete Employee", `Are you sure you want to completely delete ${name} and all their logs?`, [
       { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: async () => {
+      {
+        text: "Delete", style: "destructive", onPress: async () => {
           if (!token) return;
           try {
             await deleteEmployee(token, id);
@@ -58,7 +60,8 @@ export default function EmployeesScreen() {
           } catch (e: any) {
             Alert.alert("Error", e.message || "Failed to delete employee");
           }
-      }}
+        }
+      }
     ]);
   };
 
@@ -76,12 +79,12 @@ export default function EmployeesScreen() {
     try {
       // Call register API directly instead of the context signUp to avoid logging the admin out
       await registerUser(newName.trim(), newPassword, 'employee');
-      
+
       Alert.alert("Success", "Employee created successfully!");
       setIsAdding(false);
       setNewName("");
       setNewPassword("");
-      
+
       // Refresh the employee list
       loadEmployees();
     } catch (err: any) {
@@ -103,9 +106,9 @@ export default function EmployeesScreen() {
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <View style={styles.headerRow}>
         <Text style={[styles.header, { color: colors.foreground }]}>Employees</Text>
-        
+
         {!isAdding && (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.addButton, { backgroundColor: colors.primary }]}
             onPress={() => setIsAdding(true)}
             activeOpacity={0.8}
@@ -118,14 +121,14 @@ export default function EmployeesScreen() {
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         {isAdding && (
-          <Animated.View 
-            entering={SlideInDown.springify().damping(15).stiffness(120)} 
+          <Animated.View
+            entering={SlideInDown.springify().damping(15).stiffness(120)}
             exiting={SlideOutDown.duration(200)}
             style={[styles.addCardWrapper, { bottom: Platform.OS === 'ios' ? 110 : 90 }]}
           >
-            <BlurView 
-              intensity={80} 
-              tint="dark" 
+            <BlurView
+              intensity={80}
+              tint="dark"
               experimentalBlurMethod="dimezisBlurView"
               style={[styles.addCard, { borderColor: colors.border, backgroundColor: 'rgba(0,0,0,0.65)' }]}
             >
@@ -136,7 +139,7 @@ export default function EmployeesScreen() {
                 </TouchableOpacity>
               </View>
 
-              <ScrollView 
+              <ScrollView
                 showsVerticalScrollIndicator={false}
                 bounces={false}
                 style={{ flexShrink: 1 }}
@@ -154,7 +157,7 @@ export default function EmployeesScreen() {
                   value={newName}
                   onChangeText={setNewName}
                 />
-                
+
                 <TextInput
                   style={[styles.input, { backgroundColor: 'rgba(0,0,0,0.3)', color: '#fff', borderColor: colors.border }]}
                   placeholder="Temporary Password"
@@ -164,7 +167,7 @@ export default function EmployeesScreen() {
                   secureTextEntry
                 />
 
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.saveBtn, { backgroundColor: colors.primary, marginTop: 12 }]}
                   onPress={handleCreateEmployee}
                   disabled={isCreating}
@@ -207,12 +210,12 @@ export default function EmployeesScreen() {
                       <View style={styles.empInfo}>
                         <Text style={[styles.empName, { color: colors.foreground }]}>{item.name}</Text>
                         <Text style={[styles.empId, { color: colors.mutedForeground }]}>
-                          ID: {item.employeeId} · {isActive ? "Checked in" : "Off duty"}
+                          ID: {item.employeeId} · {item.isLoggedOut ? "Logged out" : (isActive ? "Checked in" : "Off duty")}
                         </Text>
                       </View>
                       {role === 'admin' && (
-                        <TouchableOpacity 
-                          style={{ padding: 8, marginRight: 8 }} 
+                        <TouchableOpacity
+                          style={{ padding: 8, marginRight: 8 }}
                           onPress={() => handleDeleteEmployee(item._id, item.name)}
                         >
                           <Feather name="trash-2" size={20} color={colors.destructive} />

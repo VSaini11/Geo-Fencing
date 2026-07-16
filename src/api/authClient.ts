@@ -33,6 +33,21 @@ export const loginUser = async (name: string, password: string, role: Role) => {
   return data;
 };
 
+export const logoutUser = async (token: string) => {
+  const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to logout');
+  }
+  return data;
+};
+
 export const fetchEmployees = async (token: string) => {
   const response = await fetch(`${API_BASE_URL}/api/users/employees`, {
     headers: {

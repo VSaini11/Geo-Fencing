@@ -11,11 +11,15 @@ import {
 import { getDistanceMeters } from "@/utils/distance";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQueryClient } from "@tanstack/react-query";
+import * as BackgroundFetch from 'expo-background-fetch';
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CACHED_ACTIVE_CHECKIN_KEY, CACHED_CHECKINS_KEY, CACHED_LOCATIONS_KEY, GEOFENCE_TASK_NAME } from "../tasks/geofenceTask";
+import { BACKGROUND_FETCH_TASK, CACHED_ACTIVE_CHECKIN_KEY, CACHED_CHECKINS_KEY, CACHED_LOCATIONS_KEY, GEOFENCE_TASK_NAME } from "../tasks/geofenceTask";
 import { flushOfflineQueue, pushOfflineEvent } from "../utils/offlineQueue";
+import { NativeModules, Platform } from "react-native";
+
+const { NativeGeofenceModule } = NativeModules;
 
 export function useGeofence() {
   const queryClient = useQueryClient();
@@ -50,12 +54,12 @@ export function useGeofence() {
   const activeCheckIn = useMemo(() => {
     const serverData = allCheckIns.find((c: any) => c.status === "active" && c.userName === userName);
     if (serverData) return serverData;
-    
+
     // Protect offline-created pending checkins from being wiped by the foreground
     if (cachedActiveCheckIn && cachedActiveCheckIn.status === 'active' && String(cachedActiveCheckIn.id || '').startsWith('pending-')) {
       return cachedActiveCheckIn;
     }
-    
+
     if (!isCheckInsLoading) return undefined;
     return cachedActiveCheckIn || undefined;
   }, [allCheckIns, isCheckInsLoading, cachedActiveCheckIn, userName]);
@@ -93,7 +97,7 @@ export function useGeofence() {
     if (!isCacheLoaded) return;
     const checkinToCache = activeCheckIn || null;
     AsyncStorage.setItem(CACHED_ACTIVE_CHECKIN_KEY, JSON.stringify(checkinToCache)).catch(() => { });
-  }, [activeCheckIn ? (activeCheckIn.id || activeCheckIn._id) : null, isCacheLoaded]);
+  }, [activeCheckIn ? (activeCheckIn.id || activeCheckIn._id || 'pending') : 'null', isCacheLoaded]);
 
   // Keep full check-ins list cached for instant UI on next app open
   useEffect(() => {
@@ -202,38 +206,37 @@ export function useGeofence() {
   useEffect(() => {
     async function registerGeofences() {
       try {
-        if (!permissionsGranted) return;
+        if (!permissionsGranted || !NativeGeofenceModule) return;
 
         const { status } = await Location.getBackgroundPermissionsAsync();
         if (status !== 'granted') return;
 
-        // Register GEOFENCE_TASK_NAME unconditionally if we have permissions
-        // This single task handles both geofencing (if validLocations exist) and 5-min live tracking
+        // Fetch auth and api_url from AsyncStorage for Native configure
+        const sessionStr = await AsyncStorage.getItem("geo-checkin:auth:v2");
+        const token = sessionStr ? JSON.parse(sessionStr)?.token : "";
+        
+        let apiUrl = await AsyncStorage.getItem("geo-checkin:api_url") || 'https://gca-50041716687.development.catalystappsail.in';
+        if (apiUrl.includes('localhost') || apiUrl.includes('127.0.0.1')) {
+          apiUrl = 'https://gca-50041716687.development.catalystappsail.in';
+        }
+
+        await NativeGeofenceModule.configure(apiUrl, token, userName || "");
+
         const checkedInLoc = activeCheckIn
           ? validLocations.find((l: any) => l.id === activeCheckIn.locationId || l._id === activeCheckIn.locationId)
           : null;
         const isCheckedIn = !!activeCheckIn;
 
-        const alreadyRunning = await Location.hasStartedLocationUpdatesAsync(GEOFENCE_TASK_NAME);
-
-        if (!alreadyRunning || lastRegisteredCheckedInRef.current !== isCheckedIn) {
+        if (lastRegisteredCheckedInRef.current !== isCheckedIn) {
           lastRegisteredCheckedInRef.current = isCheckedIn;
-          await Location.startLocationUpdatesAsync(GEOFENCE_TASK_NAME, {
-            accuracy: Location.Accuracy.Highest,
-            timeInterval: 15000,
-            distanceInterval: 10,
-            deferredUpdatesInterval: 0, // 0 = Force Android to deliver immediately instead of batching/sleeping
-            showsBackgroundLocationIndicator: true,
-            foregroundService: {
-              notificationTitle: isCheckedIn
-                ? `✅ Checked In${checkedInLoc ? ` — ${checkedInLoc.name}` : ''}`
-                : 'Live Tracking Active',
-              notificationBody: isCheckedIn
-                ? 'Monitoring your location for automatic checkout.'
-                : 'Monitoring for job site arrival.',
-              notificationColor: isCheckedIn ? '#22c55e' : '#3b82f6',
-            },
-          });
+          
+          if (Platform.OS === 'android') {
+             await NativeGeofenceModule.startService(isCheckedIn, checkedInLoc?.name || null);
+          }
+        }
+
+        if (Platform.OS === 'android') {
+           await NativeGeofenceModule.setValidLocations(JSON.stringify(validLocations));
         }
       } catch (err) {
         console.warn('Geofencing setup error:', err);
@@ -241,7 +244,7 @@ export function useGeofence() {
     }
 
     registerGeofences();
-  }, [validLocations, activeCheckIn ? (activeCheckIn.id || activeCheckIn._id) : null, permissionsGranted]);
+  }, [validLocations, activeCheckIn ? (activeCheckIn.id || activeCheckIn._id) : null, permissionsGranted, userName]);
 
   const processLocationUpdate = async (loc: Location.LocationObject) => {
     if (isProcessingRef.current) return;
@@ -307,12 +310,13 @@ export function useGeofence() {
         if (checkedInLoc) {
           const d = getDistanceMeters(lat, lon, checkedInLoc.latitude, checkedInLoc.longitude);
 
-          if (d > checkedInLoc.radiusMeters) {
+          // Add a 30-meter buffer (hysteresis) to prevent GPS bouncing at the edge
+          if (d > checkedInLoc.radiusMeters + 30) {
             outsideSinceRef.current = null;
-            
+
             // Optimistic Checkout
             setCachedActiveCheckIn(null);
-            
+
             await pushOfflineEvent({
               type: 'checkout',
               id: currentCheckIn.id || currentCheckIn._id,
@@ -328,10 +332,10 @@ export function useGeofence() {
           }
         } else {
           outsideSinceRef.current = null;
-          
+
           // Optimistic Checkout
           setCachedActiveCheckIn(null);
-          
+
           await pushOfflineEvent({
             type: 'checkout',
             id: currentCheckIn.id || currentCheckIn._id,
@@ -353,13 +357,14 @@ export function useGeofence() {
         }
       } else {
         outsideSinceRef.current = null;
-        if (nearest && minDistance <= nearest.radiusMeters) {
+        // Add 20m tolerance for check-in to handle minor GPS inaccuracy
+        if (nearest && minDistance <= nearest.radiusMeters + 20) {
           if (!insideSinceRef.current) insideSinceRef.current = now;
           if (now - insideSinceRef.current >= 3000) {
             insideSinceRef.current = null;
 
             const locId = nearest.id || nearest._id;
-            
+
             // Optimistic Check-in
             setCachedActiveCheckIn({
               id: 'pending-' + Date.now(),
@@ -397,5 +402,6 @@ export function useGeofence() {
     nearestLocation,
     trackingError,
     activeCheckIn,
+    hasAssignedLocations: validLocations.length > 0,
   };
 }

@@ -14,7 +14,13 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ]
+      }
     },
     "android": {
       "package": "com.vstheone.geocheckin",
@@ -26,7 +32,10 @@
         "ACCESS_BACKGROUND_LOCATION",
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_LOCATION",
-        "POST_NOTIFICATIONS"
+        "POST_NOTIFICATIONS",
+        "RECEIVE_BOOT_COMPLETED",
+        "WAKE_LOCK",
+        "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
       ]
     },
     "web": {
@@ -43,7 +52,9 @@
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "Allow GeoCheckin to use your location to automatically check you in and out when you enter or leave job sites.",
-          "locationAlwaysPermission": "Allow GeoCheckin to use your location to automatically check you in and out when you enter or leave job sites in the background."
+          "locationAlwaysPermission": "Allow GeoCheckin to use your location to automatically check you in and out when you enter or leave job sites in the background.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isIosBackgroundLocationEnabled": true
         }
       ],
       "expo-task-manager",

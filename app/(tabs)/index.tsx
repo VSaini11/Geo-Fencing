@@ -28,7 +28,7 @@ import { RadarCircle } from "@/components/RadarCircle";
 import { useAuth } from "@/hooks/useAuth";
 import { useColors } from "@/hooks/useColors";
 import { useGeofence } from "@/hooks/useGeofence";
-import { useListCheckIns } from "@/hooks/useQueries";
+import { useListCheckIns, useListLocations, useListEmployees } from "@/hooks/useQueries";
 import { getBearing } from "@/utils/distance";
 
 function formatDuration(diffInSeconds: number) {
@@ -89,6 +89,7 @@ function AdminStatusView() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { data: allCheckIns = [], isLoading, refetch } = useListCheckIns();
+  const { data: employees = [] } = useListEmployees();
 
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
@@ -142,11 +143,25 @@ function AdminStatusView() {
                   <View style={styles.adminCardTitleRow}>
                     <View style={[styles.statusIndicator, { backgroundColor: isActive ? "#22c55e" : "#ef4444", marginRight: 8 }]} />
                     <Text style={styles.adminEmployeeName}>{checkIn.userName || "Unknown Employee"}</Text>
-                    {!isActive && (
-                      <View style={{ backgroundColor: "#ef444430", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 8 }}>
-                        <Text style={{ color: "#ef4444", fontSize: 10, fontFamily: "Inter_700Bold" }}>CHECKED OUT</Text>
-                      </View>
-                    )}
+                    {(() => {
+                      const employee = employees.find((emp: any) => emp.name === checkIn.userName);
+                      const isLoggedOut = employee?.isLoggedOut;
+                      
+                      if (isLoggedOut) {
+                        return (
+                          <View style={{ backgroundColor: "#64748b30", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 8 }}>
+                            <Text style={{ color: "#94a3b8", fontSize: 10, fontFamily: "Inter_700Bold" }}>LOGGED OUT</Text>
+                          </View>
+                        );
+                      } else if (!isActive) {
+                        return (
+                          <View style={{ backgroundColor: "#ef444430", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 8 }}>
+                            <Text style={{ color: "#ef4444", fontSize: 10, fontFamily: "Inter_700Bold" }}>CHECKED OUT</Text>
+                          </View>
+                        );
+                      }
+                      return null;
+                    })()}
                   </View>
                 <Text style={styles.adminLocationName}>{checkIn.locationName}</Text>
               </View>
@@ -354,9 +369,10 @@ function NearestLocationCard({
 function EmployeeStatusView() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { currentLocation, nearestLocation, trackingError, activeCheckIn } = useGeofence();
+  const { currentLocation, nearestLocation, trackingError, activeCheckIn, hasAssignedLocations } = useGeofence();
   const { userName } = useAuth();
   const { data: allCheckIns = [], isLoading: isCheckInsLoading } = useListCheckIns();
+  const { isLoading: isLoadingLocations } = useListLocations();
 
   const [durationStr, setDurationStr] = useState("");
 
@@ -439,24 +455,39 @@ function EmployeeStatusView() {
       )}
 
       {/* Status Card — smooth animated, no flicker */}
-      <View style={styles.section}>
-        <StatusCard
-          activeCheckIn={activeCheckIn}
-          isCheckInsLoading={isCheckInsLoading}
-          durationStr={durationStr}
-        />
-      </View>
+      {hasAssignedLocations || isLoadingLocations ? (
+        <>
+          <View style={styles.section}>
+            <StatusCard
+              activeCheckIn={activeCheckIn}
+              isCheckInsLoading={isCheckInsLoading}
+              durationStr={durationStr}
+            />
+          </View>
 
-      {/* Nearest Location — debounced so radar doesn't thrash */}
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Nearest Location</Text>
-        <NearestLocationCard
-          nearestLocation={nearestLocation}
-          currentLocation={currentLocation}
-          activeCheckIn={activeCheckIn}
-          colors={colors}
-        />
-      </View>
+          {/* Nearest Location — debounced so radar doesn't thrash */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Nearest Location</Text>
+            <NearestLocationCard
+              nearestLocation={nearestLocation}
+              currentLocation={currentLocation}
+              activeCheckIn={activeCheckIn}
+              colors={colors}
+            />
+          </View>
+        </>
+      ) : (
+        <View style={styles.section}>
+          <View style={[styles.emptyCard, { backgroundColor: colors.card }]}>
+            <Text style={{ color: colors.foreground, fontSize: 16, fontFamily: "Inter_600SemiBold", marginBottom: 8 }}>
+              No Locations Assigned
+            </Text>
+            <Text style={{ color: colors.mutedForeground, textAlign: "center" }}>
+              You do not have any geofence locations assigned to you. Contact your admin to be assigned a location so you can check in.
+            </Text>
+          </View>
+        </View>
+      )}
 
       {/* Live GPS */}
       <View style={styles.section}>
