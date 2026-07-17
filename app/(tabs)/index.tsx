@@ -88,13 +88,27 @@ function AdminStatusView() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { userName } = useAuth();
   const { data: allCheckIns = [], isLoading, refetch } = useListCheckIns();
   const { data: employees = [] } = useListEmployees();
 
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
-  const todaysCheckInsRaw = allCheckIns.filter((c: any) => !!c.userName && new Date(c.checkInAt).getTime() >= todayStart.getTime());
+  const todaysCheckInsRaw = allCheckIns.filter((c: any) => {
+    if (!c.userName) return false;
+    // Do not show the current admin's own check-in/out
+    if (c.userName === userName) return false;
+    if (c.userName.toLowerCase() === 'admin') return false;
+    
+    // If we have the employees list loaded, ensure the check-in belongs to an actual employee
+    if (employees.length > 0) {
+      const isEmployee = employees.some((emp: any) => emp.name === c.userName);
+      if (!isEmployee) return false;
+    }
+    
+    return new Date(c.checkInAt).getTime() >= todayStart.getTime();
+  });
 
   const latestCheckIns = Object.values(
     todaysCheckInsRaw.reduce((acc: any, checkIn: any) => {

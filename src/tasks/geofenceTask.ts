@@ -110,10 +110,7 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
           }
 
           await updateForegroundNotification(false);
-          await Notifications.scheduleNotificationAsync({
-            content: { title: "🔴 Checked Out", body: `You have left ${checkedInLoc.name}.`, sound: true },
-            trigger: null,
-          });
+          // Removed checkout push notification to prevent continuous spam
         } else {
           // 5-min ping
           const id = activeCheckIn.id || activeCheckIn._id;
@@ -169,10 +166,7 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
         await AsyncStorage.removeItem(PENDING_CHECKIN_TS_KEY);
 
         await updateForegroundNotification(true, nearestLoc.name);
-        await Notifications.scheduleNotificationAsync({
-          content: { title: "✅ Checked In", body: `Arrived at ${nearestLoc.name}.`, sound: true },
-          trigger: null,
-        });
+        // Removed check-in push notification to prevent continuous spam
       }
     }
   } catch (e) {
